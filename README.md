@@ -1,138 +1,122 @@
-# Optimal Execution Simulator
-
-A stochastic simulation framework for analyzing execution costs under different trading policies.
+# Optimal Stopping via Monte Carlo Simulation
 
 ## Overview
 
-This project studies optimal execution as a stochastic control–inspired problem by simulating execution costs under different trading strategies in a random price environment.
+This project studies **optimal stopping problems** for stochastic processes using Monte Carlo simulation.
 
-Rather than focusing on point estimates or backtests, the emphasis is on distributional analysis: how execution strategies perform across many stochastic realizations of market prices.
+Given a stochastic process $(X_t)_{t \ge 0}$ and a payoff function $g$, the goal is to determine when it is optimal to stop the process in order to maximize expected payoff. Rather than relying on closed-form solutions, this project focuses on **computational exploration** of stopping regions and value functions.
 
-The framework is inspired by classical execution models such as Almgren–Chriss and is intended as a numerical and methodological exploration, not a closed-form optimization solution or a live trading system.
+The emphasis is on:
+
+* understanding the **structure of stopping rules**,
+* visualizing **stopping vs continuation regions**, and
+* examining how these regions depend on model parameters.
+
+This project is intended as an applied probability and stochastic control study, not a financial pricing exercise.
 
 ---
 
-## Mathematical Setup
+## Mathematical Formulation
 
-### State and Control Variables
+We consider optimal stopping problems of the form
 
-The system is modeled as a controlled stochastic process with:
-
-* **State variables**: price $P_t$ and inventory $I_t$
-* **Control variable**: trading rate $u_t$
-
-The trader's objective is to choose $u_t$ to manage the trade-off between execution cost, market impact, and inventory risk over a finite horizon.
-
-### Price Dynamics
-
-The mid-price follows a stochastic differential equation:
-
-$$dP_t = \mu \, dt + \sigma \, dW_t$$
-
-which is simulated numerically using the Euler–Maruyama scheme.
-
-Here, $\mu$ denotes drift, $\sigma$ volatility, and $W_t$ a standard Brownian motion.
-
-### Inventory Dynamics
-
-Inventory evolves deterministically under the trading rate $u_t$:
-
-$$I_{t+1} = I_t - u_t \Delta t$$
-
-In the current implementation, trading policies are fixed (time-independent), allowing isolation of structural execution trade-offs.
-
-### Execution Cost Functional
-
-Total execution cost is defined as:
-
-$$\sum_t \left( u_t P_t + \eta u_t^2 + \lambda I_t^2 \right) \Delta t$$
+$$V(x) = \sup_{\tau \in \mathcal{T}} \mathbb{E}_x \big[ g(X_\tau) \big],$$
 
 where:
 
-* $u_t P_t$ represents execution at stochastic prices,
-* $\eta u_t^2$ captures quadratic market impact,
-* $\lambda I_t^2$ penalizes inventory risk.
+* $(X_t)_{t \ge 0}$ is a stochastic process,
+* $\tau$ is a stopping time with respect to the natural filtration of $X_t$,
+* $g : \mathbb{R} \to \mathbb{R}$ is a payoff function.
 
-This functional encodes the classical tension between trading quickly (high impact) and trading slowly (inventory exposure).
-
----
-
-## Methodology
-
-For each trading policy:
-
-1. A deterministic inventory trajectory is generated.
-2. Thousands of independent price paths are simulated.
-3. Total execution cost is computed for each realization.
-4. Policies are compared using cost distributions, not single-point metrics.
-
-Evaluation focuses on:
-
-* Mean execution cost
-* Standard deviation
-* Upper-tail quantiles (execution risk)
-
-This distribution-level analysis reflects how execution strategies are assessed in both research and practice.
+The objective is to approximate the value function $V(x)$ and infer the **optimal stopping rule**.
 
 ---
 
-## Results (Current Scope)
+## Stochastic Model
 
-In a zero-drift environment ($\mu = 0$) with quadratic impact:
+The primary model studied is **Geometric Brownian Motion (GBM)**:
 
-* Slower trading strategies reduce expected execution cost and tail risk.
-* Faster trading strategies incur higher market impact costs but reduce inventory exposure time.
+$$dX_t = \mu X_t \, dt + \sigma X_t \, dW_t,$$
 
-These outcomes are consistent with theoretical intuition and serve as validation of the simulation framework.
+where:
 
----
+* $\mu$ is the drift,
+* $\sigma$ is the volatility,
+* $W_t$ is standard Brownian motion.
 
-## Theoretical Context
+The process is simulated using an exact discretization of GBM on a finite time horizon $[0,T]$.
 
-From a theoretical perspective, this execution problem admits a Hamilton–Jacobi–Bellman (HJB) formulation arising from stochastic control.
-
-This project does not attempt to solve the HJB equation numerically. Instead, it focuses on:
-
-* Constructing the underlying controlled stochastic system
-* Evaluating fixed policies via Monte Carlo simulation
-* Studying distributional properties of execution cost
-
-This separation mirrors common research workflows, where simulation and structural analysis precede full optimization.
+Extensions to other processes (e.g. mean-reverting diffusions) are discussed.
 
 ---
 
-## Scope and Limitations
+## Payoff Structure
 
-This framework is designed for structural and methodological analysis, not live deployment.
+We focus on a threshold-type payoff function:
 
-Specifically:
+$$g(x) = \max(x - K, 0),$$
 
-* Price dynamics and impact models are stylized rather than calibrated to real limit order book data.
-* Trading policies are fixed and non-adaptive.
-* No numerical PDE or HJB solver is implemented.
+where $K$ is a fixed level.
 
-These choices are intentional, allowing controlled investigation of execution trade-offs in a clean setting.
+This payoff induces a nontrivial trade-off between:
 
----
+* stopping early to secure payoff,
+* continuing to benefit from future stochastic growth.
 
-## Possible Extensions
-
-* Time-dependent or adaptive trading policies
-* Stronger inventory risk regimes
-* Nonzero price drift or stochastic volatility
-* Numerical solution of the associated HJB equation
-* Mean-field or multi-agent execution models
-* Calibration to empirical market microstructure data
+The resulting optimal stopping rule exhibits a **time-dependent stopping boundary**, which is the primary object of study.
 
 ---
 
-## Motivation
+## Numerical Method
 
-The goal of this project is to demonstrate:
+The optimal stopping problem is approximated using a **backward induction Monte Carlo algorithm**:
 
-* Applied probability via Monte Carlo simulation
-* Control-theoretic intuition in financial systems
-* Distribution-level reasoning under uncertainty
-* Research-oriented software structure
+1. Simulate a large number of sample paths of $X_t$.
+2. Discretize time into a finite grid.
+3. At each time step, compare:
+   * the immediate payoff $g(X_t)$,
+   * an estimated continuation value based on future simulated payoffs.
+4. Stop whenever the immediate payoff exceeds the continuation value.
 
-The repository is intended as a foundation for further applied mathematics or quantitative finance research.
+This procedure approximates the dynamic programming principle underlying optimal stopping.
+
+---
+
+## Experiments and Analysis
+
+The project investigates:
+
+* Empirical stopping regions in the $(t,x)$-plane
+* Sample paths with stopping times highlighted
+* Sensitivity of stopping boundaries to:
+  * volatility $\sigma$,
+  * drift $\mu$,
+  * time horizon $T$
+* Stability of results with respect to discretization and number of paths
+
+The focus is on **qualitative structure**, not closed-form accuracy.
+
+---
+
+## Limitations and Extensions
+
+This study is purely simulation-based and does not attempt to solve the associated free-boundary PDE analytically.
+
+Possible extensions include:
+
+* alternative payoff functions,
+* mean-reverting processes,
+* connections to Hamilton–Jacobi–Bellman equations,
+* numerical stability analysis of stopping boundaries.
+
+---
+
+## Project Goals
+
+This project aims to demonstrate:
+
+* independent exploration of stochastic processes,
+* applied understanding of stopping times and dynamic programming,
+* computational intuition for problems arising in probability and control.
+
+It is designed as a research-style applied mathematics project.
